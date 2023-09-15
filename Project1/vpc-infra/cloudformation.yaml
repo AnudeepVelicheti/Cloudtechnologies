@@ -1,0 +1,255 @@
+---
+    AWSTemplateFormatVersion: 2010-09-09
+    Description: Template to create VPC and Networking Infra
+    
+    Mappings:
+      EnvironmentMappings:
+        us-east-2:
+          EnvironmentName: dev
+          VpcCidr: 10.0.0.0/23
+          PublicSubnetCIDR1: 10.0.0.0/26
+          PublicSubnetCIDR2: 10.0.0.64/26
+          PrivateSubnetCIDR1: 10.0.0.128/26
+          PrivateSubnetCIDR2: 10.0.0.192/26
+          DatabaseSubnetCIDR1: 10.0.1.0/26
+          DatabaseSubnetCIDR2: 10.0.2.0/26
+    
+    
+    Resources:
+      ########## VPC ##########
+      VPC:  
+        Type: AWS::EC2::VPC
+        Properties: 
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', VpcCidr]
+          EnableDnsHostnames: true
+          EnableDnsSupport: true
+          InstanceTenancy: default
+          Tags: 
+            - Key: Name
+              Value: !Sub 
+                - ${EnvironmentName}-vpc
+                - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      ########## private and Private Subnets ##########
+      PublicSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+          AvailabilityZone: !Select 
+            - 0
+            - Fn::GetAZs: !Ref 'AWS::Region'
+          VpcId: !Ref VPC
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', PublicSubnetCIDR1]
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - public-subnet1-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      PublicSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+          AvailabilityZone: !Select 
+            - 1
+            - Fn::GetAZs: !Ref 'AWS::Region'
+          VpcId: !Ref VPC
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', PublicSubnetCIDR2]
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - public-subnet2-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      PrivateSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+          AvailabilityZone: !Select 
+            - 0
+            - Fn::GetAZs: !Ref 'AWS::Region'
+          VpcId: !Ref VPC
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', PrivateSubnetCIDR1]
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - private-subnet1-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      PrivateSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+          AvailabilityZone: !Select 
+            - 1
+            - Fn::GetAZs: !Ref 'AWS::Region'
+          VpcId: !Ref VPC
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', PrivateSubnetCIDR2]
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - private-subnet2-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      DatabaseSubnet1:
+        Type: AWS::EC2::Subnet
+        Properties:
+          AvailabilityZone: !Select 
+            - 0
+            - Fn::GetAZs: !Ref 'AWS::Region'
+          VpcId: !Ref VPC
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', DatabaseSubnetCIDR1]
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - database-subnet1-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      DatabaseSubnet2:
+        Type: AWS::EC2::Subnet
+        Properties:
+          AvailabilityZone: !Select 
+            - 1
+            - Fn::GetAZs: !Ref 'AWS::Region'
+          VpcId: !Ref VPC
+          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', DatabaseSubnetCIDR1]
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - database-subnet2-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+      
+      ########## Internet Gateway, NAT gateway ##########
+      InternetGateway:
+        Type: AWS::EC2::InternetGateway
+        Properties:
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - IGW-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      AttachInternetGateway:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+          VpcId: !Ref VPC
+          InternetGatewayId: !Ref InternetGateway
+    
+      NATGateway1:
+        DependsOn: 
+        - AttachInternetGateway
+        Type: AWS::EC2::NatGateway
+        Properties:
+          AllocationId: !GetAtt EIP1A.AllocationId
+          SubnetId: !Ref PublicSubnet1
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - ${EnvironmentName}-NatGW1
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+      EIP1A:
+        Type: AWS::EC2::EIP
+        Properties:
+          Domain: vpc
+          Tags: 
+          - Key: Name
+            Value: !Sub 
+              - ${EnvironmentName}-NatGW1-EIP
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+      NATGateway2:
+        DependsOn: 
+        - AttachInternetGateway
+        Type: AWS::EC2::NatGateway
+        Properties:
+          AllocationId: !GetAtt EIP2A.AllocationId
+          SubnetId: !Ref PublicSubnet2
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - ${EnvironmentName}-NatGW2
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+      EIP2A:
+        Type: AWS::EC2::EIP
+        Properties:
+          Domain: vpc
+          Tags: 
+          - Key: Name
+            Value: !Sub 
+              - ${EnvironmentName}-NatGW2-EIP
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+    
+          
+      ########## Routes and Associations ##########
+      PublicRouteTable1:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          VpcId: !Ref VPC
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - Public-RouteTable1-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+      
+      InternetGatewayRoute:
+        Type: AWS::EC2::Route
+        DependsOn: 
+        - AttachInternetGateway
+        Properties:
+          RouteTableId: !Ref PublicRouteTable1
+          DestinationCidrBlock: 0.0.0.0/0
+          GatewayId: !Ref InternetGateway
+    
+      RouteTableAssociationsubnet1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PublicSubnet1
+          RouteTableId: !Ref PublicRouteTable1
+    
+      RouteTableAssociationsubnet2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PublicSubnet2
+          RouteTableId: !Ref PublicRouteTable1
+    
+      PrivateRouteTable1:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          VpcId: !Ref VPC
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - Private-RouteTable1-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+      
+      NATGatewayRoute1:
+        Type: AWS::EC2::Route
+        Properties:
+          RouteTableId: !Ref PrivateRouteTable1
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: !Ref NATGateway1
+    
+      RouteTableAssociationPrivatesubnet1:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PrivateSubnet1
+          RouteTableId: !Ref PrivateRouteTable1
+    
+      PrivateRouteTable2:
+        Type: AWS::EC2::RouteTable
+        Properties:
+          VpcId: !Ref VPC
+          Tags:
+          - Key: Name
+            Value: !Sub 
+              - Private-RouteTable2-${EnvironmentName}
+              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
+      
+      NATGatewayRoute2:
+        Type: AWS::EC2::Route
+        Properties:
+          RouteTableId: !Ref PrivateRouteTable2
+          DestinationCidrBlock: 0.0.0.0/0
+          NatGatewayId: !Ref NATGateway2
+    
+      RouteTableAssociationPrivatesubnet2:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+          SubnetId: !Ref PrivateSubnet2
+          RouteTableId: !Ref PrivateRouteTable2
