@@ -11,8 +11,6 @@
           PublicSubnetCIDR2: 10.0.0.64/26
           PrivateSubnetCIDR1: 10.0.0.128/26
           PrivateSubnetCIDR2: 10.0.0.192/26
-          DatabaseSubnetCIDR1: 10.0.1.0/26
-          DatabaseSubnetCIDR2: 10.0.2.0/26
     
     
     Resources:
@@ -87,33 +85,6 @@
               - private-subnet2-${EnvironmentName}
               - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
     
-      DatabaseSubnet1:
-        Type: AWS::EC2::Subnet
-        Properties:
-          AvailabilityZone: !Select 
-            - 0
-            - Fn::GetAZs: !Ref 'AWS::Region'
-          VpcId: !Ref VPC
-          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', DatabaseSubnetCIDR1]
-          Tags:
-          - Key: Name
-            Value: !Sub 
-              - database-subnet1-${EnvironmentName}
-              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
-    
-      DatabaseSubnet2:
-        Type: AWS::EC2::Subnet
-        Properties:
-          AvailabilityZone: !Select 
-            - 1
-            - Fn::GetAZs: !Ref 'AWS::Region'
-          VpcId: !Ref VPC
-          CidrBlock: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', DatabaseSubnetCIDR1]
-          Tags:
-          - Key: Name
-            Value: !Sub 
-              - database-subnet2-${EnvironmentName}
-              - {EnvironmentName: !FindInMap [EnvironmentMappings, !Ref 'AWS::Region', EnvironmentName]}
       
       ########## Internet Gateway, NAT gateway ##########
       InternetGateway:
